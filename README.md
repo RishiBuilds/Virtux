@@ -1,337 +1,207 @@
 # 🐧 Virtux
 
-**A realistic Linux terminal, simulated entirely in Python - runs anywhere Python runs.**
+Virtux is a cross-platform Linux shell simulator written in pure Python. It is built for learners, educators, and developers who want to practice real shell syntax—pipes, redirection, exit codes, permissions, and scripting—without installing WSL, Docker, or a Linux VM. Everything runs in a sandboxed in-memory (or optionally persisted) virtual filesystem, so mistyped `rm` commands cannot touch your real files.
 
 [![PyPI version](https://img.shields.io/pypi/v/virtux.svg)](https://pypi.org/project/virtux/)
 [![Python versions](https://img.shields.io/pypi/pyversions/virtux.svg)](https://pypi.org/project/virtux/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Virtux gives you a full Linux shell experience - filesystem, permissions, piping, 75+ coreutils-style commands - without a VM, container, Docker daemon, or WSL install. It's pure Python, starts in milliseconds, and behaves close enough to a real shell that it's genuinely useful for teaching, testing, and sandboxed scripting.
-
 ```bash
 pip install virtux
 ```
-
-```
-user@virtux:~$ mkdir -p projects/my-app && cd projects/my-app
-user@virtux:~/projects/my-app$ echo "Hello World!" > README.md
-user@virtux:~/projects/my-app$ cat README.md | grep Hello
-Hello World!
-```
-
----
 
 ## Table of Contents
 
-- [Why Virtux?](#why-virtux)
+- [Quick start](#quick-start)
+- [Example session](#example-session)
 - [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Usage Modes](#usage-modes)
-- [Command Reference](#command-reference)
+- [Supported commands](#supported-commands)
+- [Usage modes](#usage-modes)
+- [Configuration & persistence](#configuration--persistence)
 - [Python API](#python-api)
-- [Plugin System](#plugin-system)
-- [Configuration](#configuration)
-- [How It Compares](#how-it-compares)
-- [FAQ](#faq)
+- [Plugin system](#plugin-system)
+- [Limitations](#limitations)
 - [Contributing](#contributing)
 - [License](#license)
 
----
+## Quick start
 
-## Why Virtux?
-
-Most "learn Linux" tools fall into two camps: a real VM/container (heavy, slow to spin up, needs admin rights) or a toy JS terminal in a browser (not scriptable, no real Python integration). Virtux sits in between:
-
-| Need                                  | Virtux | Real VM / Docker | Browser sandbox |
-| ------------------------------------- | ------ | ---------------- | --------------- |
-| Works on Windows without WSL          | ✅     | ❌               | ✅              |
-| Starts in under a second              | ✅     | ❌               | ✅              |
-| Real piping, redirection, exit codes  | ✅     | ✅               | ⚠️ limited      |
-| Embeddable in a Python app/test suite | ✅     | ⚠️ awkward       | ❌              |
-| Zero system dependencies              | ✅     | ❌               | ✅              |
-| Persistent state between runs         | ✅     | ✅               | ⚠️ varies       |
-
-If you need to **teach** shell basics, **test** CLI tools without touching the real filesystem, or **embed** a sandboxed shell inside another Python app, Virtux is built for exactly that.
-
-## Features
-
-- 🖥️ **Realistic shell** - colorized prompt, tab completion, reverse-search history (`Ctrl+R`), multi-line editing
-- 📁 **Virtual filesystem** - a full hierarchical tree (`/home`, `/etc`, `/tmp`, `/var`, …) backed by an in-memory or on-disk store
-- 🔗 **Real piping & redirection** - `|`, `>`, `>>`, `<`, `2>`, `&>`, `&&`, `||`, `;`, subshells with `()`
-- 🔒 **Users & permissions** - `chmod`, `chown`, `chgrp`, `umask`, `sudo`, `su`, full rwx + octal permission model with enforcement
-- 📝 **75+ built-in commands** - see the [full reference](#command-reference) below
-- 💾 **Persistent sessions** - your virtual filesystem and history survive across runs (stored in `~/.virtux/`)
-- 🔌 **Plugin system** - add your own commands via Python entry points, no fork required
-- 🛡️ **Fully sandboxed** - nothing Virtux does ever touches your real filesystem, network, or processes
-- 🧪 **Scriptable & testable** - drive it from `pytest`, assert on output/exit codes, reset state between tests
-- 🌍 **Cross-platform** - identical behavior on Windows, macOS, and Linux since it isn't backed by the host shell
-
-## Installation
-
-```bash
-pip install virtux
-```
-
-Requires **Python 3.9+**. No compiled extensions, no system packages, no admin/root access needed.
-
-To verify:
-
-```bash
-virtux --version
-```
-
-## Quick Start
-
-### Interactive Shell
+Launch the interactive REPL:
 
 ```bash
 virtux
 ```
 
-```
- ╦  ╦╦╦═╗╔╦╗╦ ╦═╗ ╦
- ╚╗╔╝║╠╦╝ ║ ║ ║╔╩╦╝
-  ╚╝ ╩╩╚═ ╩ ╚═╝╩ ╚═
-  Linux Terminal Emulator v0.1.0
-
-user@virtux:~$ mkdir -p projects/my-app
-user@virtux:~$ echo "Hello World!" > projects/my-app/README.md
-user@virtux:~$ cat projects/my-app/README.md
-Hello World!
-user@virtux:~$ ls -la projects/
-drwxr-xr-x  2 user user  4096 Jun 23 12:00 my-app
-user@virtux:~$ find / -name "*.md"
-/home/user/projects/my-app/README.md
-user@virtux:~$ chmod 600 projects/my-app/README.md && ls -l projects/my-app/
--rw-------  1 user user  13 Jun 23 12:00 README.md
-```
-
-### One-Off Command
-
-Run a single command and exit - handy for quick checks or shell scripts:
+Run one command and exit (propagates the command's exit code):
 
 ```bash
-virtux -c "ls -la /etc"
+virtux -c "ls /etc"
 ```
 
-### Script Execution
-
-Run a `.sh` file just like `bash script.sh` would:
+Run without saving or loading session state:
 
 ```bash
-virtux script.sh
+virtux --no-persist -c "echo hello"
 ```
+
+Check the version:
 
 ```bash
-# script.sh
-#!/usr/bin/env virtux
-mkdir -p /tmp/build
-for f in *.txt; do
-  cp "$f" /tmp/build/
-done
-echo "Build staged: $(ls /tmp/build | wc -l) files"
+virtux --version
+# or
+python -m virtux --version
 ```
 
-## Usage Modes
+Requires **Python 3.9+**. Dependencies: `prompt_toolkit`, `rich`, and `platformdirs` (used by supporting utilities; the REPL itself uses stdlib `input()` plus optional GNU readline when available).
 
-| Mode         | Command                          | Best for                                 |
-| ------------ | -------------------------------- | ---------------------------------------- |
-| Interactive  | `virtux`                         | Learning, exploring, manual testing      |
-| One-shot     | `virtux -c "cmd"`                | Scripts, CI checks, quick lookups        |
-| Script file  | `virtux script.sh`               | Reusable automation, classroom exercises |
-| Embedded API | `from virtux import VirtuxShell` | Apps, test suites, custom tooling        |
+## Example session
 
-## Command Reference
+The interactive prompt follows `user@hostname:path$` (with `~` for your home directory). After a failing command, a `✗` marker appears before `$`, matching `Environment.get_prompt()`:
 
-<details>
-<summary><strong>📁 Filesystem</strong> (15 commands)</summary>
+```console
+ __   __ _      _
+ \ \ / /(_)_ _| |_ _  ___ __
+  \ V / | | '_|  _| || \ \ /
+   \_/  |_|_|  \__|\_,_/_\_\
 
-`ls` `cd` `pwd` `mkdir` `rmdir` `rm` `cp` `mv` `touch` `ln` `find` `stat` `du` `df` `tree`
+  A portable Linux shell simulator - type 'help' to begin.
 
-</details>
+user@virtux:~$ mkdir -p demo && cd demo
+user@virtux:~/demo$ echo hello > msg.txt && cat msg.txt
+hello
+user@virtux:~/demo$ ls -la
+total 8
+drwxr-xr-x 1 user user     4096 Jan  1 12:00 .
+drwxr-xr-x 1 user user     4096 Jan  1 12:00 ..
+-rw-r--r-- 1 user user        6 Jan  1 12:00 msg.txt
+user@virtux:~/demo$ false && echo skipped
+user@virtux:~/demo$ ✗ ls /nope
+ls: cannot access '/nope': No such file or directory
+user@virtux:~/demo$ help cat
+cat: cat [-n] [file ...]
+    Concatenate files and print on the standard output.
+```
 
-<details>
-<summary><strong>📝 Text processing</strong> (13 commands)</summary>
+## Features
 
-`cat` `head` `tail` `grep` `wc` `sort` `uniq` `cut` `sed` `awk` `echo` `tee` `diff`
+- **Sandboxed virtual filesystem** — hierarchical tree (`/home`, `/etc`, `/tmp`, `/var`, …) stored in memory or JSON on disk
+- **Real shell syntax** — pipes (`|`), redirection (`>`, `>>`, `<`, `2>`, `2>>`, `&>`), lists (`;`, `&&`, `||`), and background (`&`)
+- **75 built-in commands** — file tools, text processing, permissions, simulated network/process commands, and more
+- **Permission model** — `chmod`, `chown`, `umask`, `sudo`, and `su` with rwx checks enforced at the filesystem layer (root bypasses checks)
+- **Cross-platform** — identical behaviour on Windows, macOS, and Linux; no host shell required
+- **Embeddable** — drive sessions from Python or `pytest`, capture stdout/stderr/exit codes, reset between tests
+- **Optional persistence** — save filesystem + environment to `~/.virtux/virtux_state.json` (override with `VIRTUX_HOME`)
+- **Plugins** — register extra commands via Python entry points (see below)
+- **Tab completion** — GNU readline completion when readline (or `pyreadline3` on Windows) is available
 
-</details>
+## Supported commands
 
-<details>
-<summary><strong>⚙️ System</strong> (23 commands)</summary>
+Virtux registers **75 unique commands** (plus aliases such as `ll` → `ls -la`):
 
-`whoami` `uname` `hostname` `date` `cal` `uptime` `env` `export` `unset` `alias` `unalias` `history` `clear` `exit` `man` `help` `which` `type` `id` `printenv` `true` `false` `sleep`
+| Category | Commands |
+| -------- | -------- |
+| Filesystem | `ls`, `cd`, `pwd`, `mkdir`, `rmdir`, `rm`, `cp`, `mv`, `touch`, `ln`, `find`, `stat`, `du`, `df`, `tree` |
+| Text | `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `cut`, `sed`, `awk`, `echo`, `tee`, `diff` |
+| System | `whoami`, `uname`, `hostname`, `date`, `cal`, `uptime`, `env`, `export`, `unset`, `alias`, `unalias`, `history`, `clear`, `exit`, `man`, `help`, `which`, `type`, `id`, `printenv`, `true`, `false`, `sleep` |
+| Permissions / shell | `chmod`, `chown`, `chgrp`, `umask`, `sudo`, `su`, `source`, `bash`, `sh` |
+| Network (simulated) | `ping`, `ifconfig`, `ip`, `curl`, `wget`, `ssh` |
+| Archives | `tar`, `gzip`, `gunzip`, `zip`, `unzip` |
+| Processes (simulated) | `ps`, `top`, `kill`, `jobs` |
 
-</details>
+Run `help` or `man <command>` inside the shell for usage details.
 
-<details>
-<summary><strong>🔒 Shell & permissions</strong> (9 commands)</summary>
+## Usage modes
 
-`chmod` `chown` `chgrp` `umask` `sudo` `su` `source` `bash` `sh`
+| Mode | Command | Use case |
+| ---- | ------- | -------- |
+| Interactive | `virtux` | Learning, exploring, manual testing |
+| One-shot | `virtux -c "cmd"` | Scripts, CI checks, quick lookups |
+| Script file | `virtux script.sh` | Batch commands (VFS paths or host paths) |
+| Embedded API | `from virtux import VirtuxShell` | Apps, test suites, tooling |
+| Reset state | `virtux --reset` | Wipe persisted filesystem to defaults |
+| Ephemeral | `virtux --no-persist` | In-memory session; nothing written on exit |
 
-</details>
+## Configuration & persistence
 
-<details>
-<summary><strong>🌐 Network</strong> (6 commands, simulated)</summary>
+| Setting | Effect |
+| ------- | ------ |
+| Default data dir | `~/.virtux/` (contains `virtux_state.json` and readline `history` when persistence is on) |
+| `VIRTUX_HOME` | Override the data directory |
+| `--no-persist` | Skip loading and saving state; no readline history file |
+| `VIRTUX_DEBUG=1` | Show full tracebacks for command handler errors |
 
-`ping` `ifconfig` `ip` `curl` `wget` `ssh`
+Session state is stored as JSON (`json.dump` / `json.load` only—no `eval` or `pickle`). Malformed state files produce a warning and start from defaults.
 
-> Network commands return realistic, deterministic output but never make real network calls - safe to script against without side effects.
-
-</details>
-
-<details>
-<summary><strong>📦 Archives & compression</strong> (5 commands)</summary>
-
-`tar` `gzip` `gunzip` `zip` `unzip`
-
-</details>
-
-<details>
-<summary><strong>📊 Process management</strong> (4 commands, simulated)</summary>
-
-`ps` `top` `kill` `jobs`
-
-</details>
-
-Run `man <command>` or `help` inside the shell for full usage and flags for any of the above.
+On Windows, ANSI colours are enabled when possible; readline tab completion works if `pyreadline3` is installed, otherwise basic line editing is used.
 
 ## Python API
 
-Embed Virtux directly in your own application or test suite:
-
 ```python
 from virtux import VirtuxShell
 
-shell = VirtuxShell()
-output = shell.execute("echo 'Hello from Python!'")
-print(output)  # Hello from Python!
+shell = VirtuxShell(persist=False)
+print(shell.execute("echo Hello"))          # capture combined output
+print(shell.executor.last_exit_code)        # 0
+
+result = shell.run("ls /etc")
+print(result.stdout, result.stderr, result.exit_code)
 ```
 
-### Capturing exit codes and errors
-
-```python
-result = shell.run("ls /nonexistent")
-print(result.stdout)      # ""
-print(result.stderr)      # "ls: /nonexistent: No such file or directory"
-print(result.exit_code)   # 2
-```
-
-### Resetting state between tests
-
-```python
-import pytest
-from virtux import VirtuxShell
-
-@pytest.fixture
-def shell():
-    s = VirtuxShell(persist=False)  # fresh, in-memory filesystem
-    yield s
-    s.reset()
-
-def test_mkdir_creates_directory(shell):
-    shell.execute("mkdir /tmp/demo")
-    assert shell.execute("test -d /tmp/demo && echo yes") == "yes\n"
-```
-
-### Pre-seeding a virtual filesystem
+Pre-seed the virtual filesystem:
 
 ```python
 shell = VirtuxShell()
 shell.fs.write_file("/etc/myapp.conf", "debug=true\n")
-shell.execute("cat /etc/myapp.conf")  # debug=true
+shell.execute("cat /etc/myapp.conf")
 ```
 
-## Plugin System
+## Plugin system
 
-Add custom commands without forking the project, using standard Python entry points:
+Plugins register commands through the `virtux.plugins` entry-point group:
 
 ```python
-# my_virtux_plugin/plugin.py
+# my_plugin/register.py
 def register(registry):
-    @registry.register("mycommand", help_text="My custom command")
-    def cmd_mycommand(ctx):
-        ctx.writeln("Hello from my plugin!")
+    @registry.register("greet", help_text="Say hello")
+    def cmd_greet(ctx):
+        ctx.writeln("Hello from a plugin!")
         return 0
 ```
 
 ```toml
-# pyproject.toml
 [project.entry-points."virtux.plugins"]
-my_plugin = "my_virtux_plugin.plugin:register"
+my_plugin = "my_plugin.register:register"
 ```
 
-Once installed (`pip install .` or `pip install my-virtux-plugin`), `mycommand` is available automatically in every Virtux session - no extra registration step needed.
+**Trust boundary:** installing a third-party Virtux plugin grants it the same power as a built-in command—it can register handlers on the live command registry and access the virtual filesystem and environment. Only install plugins you trust, just as you would with shell functions sourced from untrusted scripts.
 
-**`ctx` gives plugin authors access to:**
+## Limitations
 
-| Member                                  | Purpose                       |
-| --------------------------------------- | ----------------------------- |
-| `ctx.writeln(text)` / `ctx.write(text)` | Write to stdout               |
-| `ctx.error(text)`                       | Write to stderr               |
-| `ctx.args`                              | Parsed argument list          |
-| `ctx.fs`                                | Virtual filesystem handle     |
-| `ctx.env`                               | Current environment variables |
-| `ctx.cwd`                               | Current working directory     |
+Virtux is a teaching sandbox, not a production shell:
 
-## Configuration
+- Commands are Python implementations; no real binaries, kernel, or network I/O
+- `sudo`/`su` simulate UID switching inside the virtual environment only
+- Permission checks apply to filesystem operations; they do not model every Linux edge case (ACLs, capabilities, etc.)
+- Background jobs (`&`) are parsed but not scheduled as asynchronous tasks
+- Some README-era bash features (subshells, `$()`, advanced job control) may be partial or absent—check `help` for what is implemented
 
-| CLI flag              | Effect                                                 |
-| --------------------- | ------------------------------------------------------ |
-| `virtux`              | Launch interactive shell                               |
-| `virtux -c "command"` | Execute a single command and exit                      |
-| `virtux script.sh`    | Run a script file                                      |
-| `virtux --reset`      | Wipe the persisted virtual filesystem and start clean  |
-| `virtux --no-persist` | Run with an in-memory filesystem that discards on exit |
-| `virtux --version`    | Print the installed version                            |
-
-By default, session state (filesystem + history) is stored at `~/.virtux/`. Override with the `VIRTUX_HOME` environment variable:
-
-```bash
-export VIRTUX_HOME=/tmp/my-virtux-sandbox
-virtux
-```
-
-## How It Compares
-
-|                               | Virtux               | WSL             | Docker container        | xterm.js + node-pty              |
-| ----------------------------- | -------------------- | --------------- | ----------------------- | -------------------------------- |
-| Install footprint             | `pip install`        | OS feature, GBs | Docker daemon required  | Node + native pty bindings       |
-| Cold start                    | Milliseconds         | Seconds–minutes | Seconds                 | Seconds                          |
-| Cross-platform parity         | Identical everywhere | Windows-only    | Needs Docker Desktop    | Needs a real OS shell underneath |
-| Touches real filesystem       | Never                | Yes             | Yes (namespaced)        | Yes                              |
-| Embeds in a Python test suite | Native               | Awkward         | Possible via SDK, heavy | Not applicable                   |
-
-Virtux isn't a replacement for a real Linux box when you need actual binaries, real networking, or kernel-level behavior - it's a lightweight, safe stand-in for teaching, prototyping, and testing shell-driven workflows.
-
-## FAQ
-
-**Does Virtux run real binaries?**
-No. Every command is a Python implementation that mimics real Linux behavior closely enough for scripting, teaching, and testing - but nothing is shelled out to your OS.
-
-**Can it break my actual files?**
-No. The virtual filesystem is fully isolated, whether it's in-memory (`--no-persist`) or persisted under `~/.virtux/`.
-
-**Does `sudo`/`su` do anything real?**
-They simulate the permission model (UID/GID switching, permission checks) within the virtual filesystem only - there's no real privilege escalation possible.
-
-**Can I use it in CI?**
-Yes - `virtux --no-persist -c "..."` is ideal for CI: deterministic, no host side effects, no setup steps.
+For real Linux behaviour (actual `gcc`, sockets, containers), use WSL or a VM. For zero-setup CLI practice anywhere Python runs, Virtux is the lightweight option.
 
 ## Contributing
 
-Issues and PRs are welcome. Before opening a PR:
+Issues and pull requests are welcome at [github.com/RishiBuilds/Virtux](https://github.com/RishiBuilds/Virtux).
 
 ```bash
 git clone https://github.com/RishiBuilds/Virtux.git
 cd Virtux
 pip install -e ".[dev]"
-pytest
+python -m pytest
+python -m ruff check src tests
+python -m mypy src
 ```
 
-Please include tests for new commands or behavior changes - see `tests/` for examples of the expected style.
+Please add tests under `tests/` for new commands or behaviour changes.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE).

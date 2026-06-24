@@ -11,6 +11,8 @@ from typing import List, Any
 from virtux.core.parser import Pipeline, Command, Redirect, parse, ParseError
 from virtux.core.registry import get_command, ExecutionContext
 
+_plugins_loaded = False
+
 
 class Executor:
     """Executes a list of Pipelines produced by the parser."""
@@ -49,8 +51,14 @@ class Executor:
         if registry is None:
             from virtux.registry import CommandRegistry
             from virtux.commands import register_all_commands
+            from virtux.plugins import discover_plugins
+
+            global _plugins_loaded
             registry = CommandRegistry()
             register_all_commands(registry)
+            if not _plugins_loaded:
+                discover_plugins(registry)
+                _plugins_loaded = True
         self.registry = registry
 
         if users is None:
@@ -63,6 +71,9 @@ class Executor:
         return getattr(self.env, "last_exit_code", 0)
 
     def run_line(self, line: str) -> int:
+        stripped = line.strip()
+        if stripped and hasattr(self.env, "add_history"):
+            self.env.add_history(stripped)
         try:
             pipelines = parse(line, env=self.env, fs=self.fs)
         except ParseError as e:
@@ -170,6 +181,12 @@ class Executor:
         ctx.registry = self.registry
         ctx.users = self.users
 
+        if hasattr(self.fs, "set_access_context"):
+            self.fs.set_access_context(
+                self.users.current_user,
+                self.users.get_user_groups(),
+            )
+
         try:
             return self._dispatch(cmd.args, ctx, real_stderr=stderr)
         finally:
@@ -191,25 +208,55 @@ class Executor:
             return 0
 
         cmd_cls = get_command(name)
-        if cmd_cls is None:
-            ctx.error(f"virtux: {name}: command not found")
-            _flush_stderr(ctx, real_stderr=real_stderr)
-            return 127
+        if cmd_cls is not None:
+            try:
+                code = cmd_cls().execute(args, ctx)
+                _flush_stderr(ctx, real_stderr=real_stderr)
+                return code if code is not None else 0
+            except KeyboardInterrupt:
+                ctx.error("")
+                return 130
+            except Exception as exc:
+                if "--debug" in args or self._debug_enabled():
+                    ctx.error(f"virtux: {name}: {exc}\n{traceback.format_exc()}")
+                else:
+                    ctx.error(f"virtux: {name}: {exc}")
+                _flush_stderr(ctx, real_stderr=real_stderr)
+                return 1
 
-        try:
-            code = cmd_cls().execute(args, ctx)
-            _flush_stderr(ctx, real_stderr=real_stderr)
-            return code if code is not None else 0
-        except KeyboardInterrupt:
-            ctx.error("")
-            return 130
-        except Exception as exc:
-            if "--debug" in args or self._debug_enabled():
-                ctx.error(f"virtux: {name}: {exc}\n{traceback.format_exc()}")
-            else:
-                ctx.error(f"virtux: {name}: {exc}")
-            _flush_stderr(ctx, real_stderr=real_stderr)
-            return 1
+        if self.registry is not None and hasattr(self.registry, "execute"):
+            from virtux.registry import CommandContext
+
+            legacy_ctx = CommandContext(
+                fs=ctx.fs,
+                env=ctx.env,
+                users=ctx.users,
+                stdin=ctx.stdin,
+                stdout=ctx.stdout,
+                stderr=ctx.stderr,
+                args=args[1:],
+                cwd=getattr(ctx, "cwd", None) or ctx.env.cwd,
+                last_exit_code=getattr(ctx, "last_exit_code", 0),
+                registry=self.registry,
+            )
+            try:
+                code = self.registry.execute(name, legacy_ctx)
+                _flush_stderr(ctx, real_stderr=real_stderr)
+                return int(code)
+            except KeyboardInterrupt:
+                ctx.error("")
+                return 130
+            except Exception as exc:
+                if self._debug_enabled():
+                    ctx.error(f"virtux: {name}: {exc}\n{traceback.format_exc()}")
+                else:
+                    ctx.error(f"virtux: {name}: {exc}")
+                _flush_stderr(ctx, real_stderr=real_stderr)
+                return 1
+
+        ctx.error(f"virtux: {name}: command not found")
+        _flush_stderr(ctx, real_stderr=real_stderr)
+        return 127
 
     def _debug_enabled(self) -> bool:
         return bool(getattr(self.env, "get_var", lambda *_: "")("VIRTUX_DEBUG"))
@@ -234,8 +281,10 @@ class Executor:
                 buf = _VFSWriteBuffer(self.fs, path, append=(redir.kind == "append"))
                 stdout_stream = buf
                 open_files.append(buf)
-            elif redir.kind == "err":
-                buf = _VFSWriteBuffer(self.fs, path)
+            elif redir.kind in ("err", "err_append"):
+                buf = _VFSWriteBuffer(
+                    self.fs, path, append=(redir.kind == "err_append")
+                )
                 stderr_stream = buf
                 open_files.append(buf)
 
@@ -272,15 +321,18 @@ class _VFSWriteBuffer(io.StringIO):
         self._fs = fs
         self._path = path
         self._append = append
-        if append and fs.is_file(path):
-            existing = fs.read_file(path).decode("utf-8", errors="replace")
-            self.write(existing)
 
     def close(self, real_stderr=None):
         self.seek(0)
         data = self.read().encode("utf-8")
+        if not data:
+            super().close()
+            return
         try:
-            self._fs.write_file(self._path, data)
+            if self._append and self._fs.is_file(self._path):
+                self._fs.append_file(self._path, data.decode("utf-8"))
+            else:
+                self._fs.write_file(self._path, data)
         except Exception as e:
             target = real_stderr if real_stderr is not None else sys.stderr
             target.write(f"virtux: {self._path}: write failed: {e}\n")

@@ -43,12 +43,19 @@ class ShellResult:
     exit_code: int
 
 
+class _UseDefaultPersistPath:
+    """Sentinel: use the platform default persist file path."""
+
+
+_USE_DEFAULT_PERSIST = _UseDefaultPersistPath()
+
+
 class Shell:
     """Interactive shell REPL using readline."""
 
     def __init__(
         self,
-        persist_path: str | None = None,
+        persist_path: str | None | _UseDefaultPersistPath = _USE_DEFAULT_PERSIST,
         fs: VirtualFileSystem | None = None,
         env: Environment | None = None,
         executor: Executor | None = None,
@@ -57,14 +64,29 @@ class Shell:
         self.env = env if env is not None else Environment()
         self.executor = executor if executor is not None else Executor(self.fs, self.env)
         from virtux.utils import get_data_dir
-        self.persist_path = persist_path or os.path.join(
-            get_data_dir(), "virtux_state.json"
-        )
-        self.history_path = os.path.join(
-            os.path.dirname(self.persist_path) or ".", "history"
-        )
+        self._persist_enabled: bool
+        resolved_persist: str | None
+        if persist_path is _USE_DEFAULT_PERSIST:
+            self._persist_enabled = True
+            resolved_persist = os.path.join(get_data_dir(), "virtux_state.json")
+        elif persist_path is None:
+            self._persist_enabled = False
+            resolved_persist = None
+        else:
+            assert isinstance(persist_path, str)
+            self._persist_enabled = True
+            resolved_persist = persist_path
+        self.persist_path = resolved_persist
+        self.history_path: str | None
+        if resolved_persist:
+            self.history_path = os.path.join(
+                os.path.dirname(resolved_persist) or ".", "history"
+            )
+        else:
+            self.history_path = None
         self._setup_readline()
-        self._load_state()
+        if self._persist_enabled:
+            self._load_state()
         self._load_readline_history()
         atexit.register(self._on_exit)
 
@@ -79,7 +101,7 @@ class Shell:
             print(f"virtux: warning: readline setup failed: {e}", file=sys.stderr)
 
     def _load_readline_history(self) -> None:
-        if readline is None:
+        if readline is None or not self.history_path:
             return
         try:
             if os.path.exists(self.history_path):
@@ -88,7 +110,7 @@ class Shell:
             print(f"virtux: warning: could not load history: {e}", file=sys.stderr)
 
     def _save_readline_history(self) -> None:
-        if readline is None:
+        if readline is None or not self.history_path:
             return
         try:
             os.makedirs(os.path.dirname(self.history_path) or ".", exist_ok=True)
@@ -97,7 +119,8 @@ class Shell:
             print(f"virtux: warning: could not save history: {e}", file=sys.stderr)
 
     def _on_exit(self) -> None:
-        self._save_state()
+        if self._persist_enabled:
+            self._save_state()
         self._save_readline_history()
 
     def _completer(self, text: str, state: int) -> str | None:
@@ -182,6 +205,8 @@ class Shell:
 
     def _save_state(self) -> None:
         """Save filesystem and environment to the single persist JSON file."""
+        if not self._persist_enabled or not self.persist_path:
+            return
         try:
             fs_node = getattr(self.fs, "root", getattr(self.fs, "_root", None))
             fs_data = fs_node.to_dict() if fs_node else {}
@@ -202,6 +227,8 @@ class Shell:
 
     def _load_state(self) -> None:
         """Load filesystem and environment from the single persist JSON file."""
+        if not self._persist_enabled or not self.persist_path:
+            return
         try:
             if os.path.exists(self.persist_path):
                 with open(self.persist_path, "r", encoding="utf-8") as f:

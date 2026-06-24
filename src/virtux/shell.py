@@ -59,7 +59,7 @@ class VirtuxShell(Shell):
 
         self._loaded_plugins = discover_plugins(self._registry)
 
-        self._executor = Executor(self._fs, self._env)
+        self._executor = Executor(self._registry, self._fs, self._env, self._users)
 
         self._history: list[str] = []
 
@@ -84,7 +84,7 @@ class VirtuxShell(Shell):
         )
         self._env = self.env
 
-        self.executor = Executor(self.fs, self.env)
+        self.executor = Executor(self._registry, self.fs, self.env, self._users)
         self._executor = self.executor
 
         self._history.clear()

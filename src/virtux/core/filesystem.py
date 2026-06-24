@@ -12,6 +12,9 @@ from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass, field
 
 
+from virtux.permissions import check_permission
+
+
 class VirtualFileSystemError(OSError):
     """Base exception for filesystem errors."""
     pass
@@ -56,7 +59,7 @@ class FSNode:
     symlink_target: Optional[str] = None
 
     def __post_init__(self):
-        if self.is_dir:
+        if self.is_dir and self.permissions == 0o644:
             self.permissions = 0o755
 
     @property
@@ -134,8 +137,38 @@ class VirtualFileSystem:
         self._umask = umask & 0o777
         self._default_owner = owner
         self._default_group = group
+        self._enforce_permissions = kwargs.get("enforce_permissions", True)
+        self._access_user = owner
+        self._access_groups: List[str] = [group]
+        self._permission_bypass_depth = 0
         self.root = FSNode(name="/", is_dir=True, permissions=0o755, owner="root", group="root")
         self._build_default_tree()
+
+    def set_access_context(
+        self,
+        user: str,
+        groups: Optional[List[str]] = None,
+        *,
+        enforce: Optional[bool] = None,
+    ) -> None:
+        """Set the effective user for permission checks during command execution."""
+        self._access_user = user
+        self._access_groups = list(groups or [])
+        if enforce is not None:
+            self._enforce_permissions = enforce
+
+    def _require_permission(self, node: FSNode, path: str, action: str) -> None:
+        if not self._enforce_permissions or self._permission_bypass_depth:
+            return
+        if not check_permission(
+            node.permissions,
+            node.owner,
+            node.group,
+            self._access_user,
+            self._access_groups,
+            action,
+        ):
+            raise PermissionError_(f"Permission denied: {path}")
 
     @property
     def umask(self) -> int:
@@ -150,6 +183,13 @@ class VirtualFileSystem:
 
     def _build_default_tree(self):
         """Create the standard Linux directory hierarchy."""
+        self._permission_bypass_depth += 1
+        try:
+            self._build_default_tree_inner()
+        finally:
+            self._permission_bypass_depth -= 1
+
+    def _build_default_tree_inner(self):
         dirs = [
             ("bin", "root", 0o755),
             ("etc", "root", 0o755),
@@ -251,6 +291,8 @@ class VirtualFileSystem:
         node = self._traverse(path)
         if node is None or not node.is_dir:
             raise FileNotFoundError_(f"No such directory: {path}")
+        self._require_permission(node, path, "read")
+        self._require_permission(node, path, "execute")
         return sorted(node.children.keys())
 
     def get_node(self, path: str) -> Optional[FSNode]:
@@ -288,6 +330,7 @@ class VirtualFileSystem:
             raise FileNotFoundError_(f"No such file: {path}")
         if node.is_dir:
             raise IsADirectoryError_(f"Is a directory: {path}")
+        self._require_permission(node, path, "read")
         return node.content
 
     def write_file(self, path: str, content: bytes | str, owner: Optional[str] = None,
@@ -299,10 +342,14 @@ class VirtualFileSystem:
             raise FileNotFoundError_(f"Parent directory not found: {path}")
         if not parent.is_dir:
             raise NotADirectoryError_("Not a directory")
+        self._require_permission(parent, path.rsplit("/", 1)[0] or "/", "write")
+        self._require_permission(parent, path.rsplit("/", 1)[0] or "/", "execute")
         if name in parent.children and parent.children[name].is_dir:
             raise IsADirectoryError_(f"Is a directory: {path}")
 
         existing = parent.children.get(name)
+        if existing and not append:
+            self._require_permission(existing, path, "write")
         if existing and append:
             content = existing.content + content
 
@@ -311,8 +358,8 @@ class VirtualFileSystem:
             resolved_group = kwargs.get("group", existing.group)
             resolved_perms = permissions if permissions is not None else existing.permissions
         else:
-            resolved_owner = owner if owner is not None else "user"
-            resolved_group = kwargs.get("group", resolved_owner)
+            resolved_owner = owner if owner is not None else self._default_owner
+            resolved_group = kwargs.get("group", self._default_group)
             resolved_perms = permissions if permissions is not None else self._apply_umask(0o666)
 
         node = FSNode(name=name, is_dir=False, content=content,
@@ -325,6 +372,9 @@ class VirtualFileSystem:
         parent, name = self._parent_and_name(path)
         if parent is None or name not in parent.children:
             raise FileNotFoundError_(f"No such file: {path}")
+        parent_path = path.rsplit("/", 1)[0] or "/"
+        self._require_permission(parent, parent_path, "write")
+        self._require_permission(parent, parent_path, "execute")
         node = parent.children[name]
         if node.is_dir and not recursive:
             raise IsADirectoryError_(f"Is a directory: {path}")
@@ -441,11 +491,22 @@ class VirtualFileSystem:
         self.write_file(path, content, append=True)
 
     def reset(self) -> None:
-        self.root = FSNode(name="/", is_dir=True, permissions=0o755, owner="root", group="root")
-        self._build_default_tree()
+        self._permission_bypass_depth += 1
+        try:
+            self.root = FSNode(name="/", is_dir=True, permissions=0o755, owner="root", group="root")
+            self._build_default_tree_inner()
+        finally:
+            self._permission_bypass_depth -= 1
 
     def setup_user_home(self, username: str, group: str) -> None:
         """Create the home directory for a user with standard dotfiles."""
+        self._permission_bypass_depth += 1
+        try:
+            self._setup_user_home_inner(username, group)
+        finally:
+            self._permission_bypass_depth -= 1
+
+    def _setup_user_home_inner(self, username: str, group: str) -> None:
         home = f"/home/{username}"
         self.makedirs(home, owner=username)
 
@@ -531,4 +592,8 @@ class VirtualFileSystem:
     def load(self, filepath: str) -> None:
         with open(filepath) as f:
             data = json.load(f)
-        self.root = FSNode.from_dict(data)
+        self._permission_bypass_depth += 1
+        try:
+            self.root = FSNode.from_dict(data)
+        finally:
+            self._permission_bypass_depth -= 1
