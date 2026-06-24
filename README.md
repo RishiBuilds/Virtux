@@ -2,14 +2,15 @@
 
 **A realistic Linux terminal, simulated entirely in Python - runs anywhere Python runs.**
 
+[![PyPI version](https://img.shields.io/pypi/v/virtux.svg)](https://pypi.org/project/virtux/)
+[![Python versions](https://img.shields.io/pypi/pyversions/virtux.svg)](https://pypi.org/project/virtux/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://img.shields.io/pypi/dm/virtux.svg)](https://pypi.org/project/virtux/)
 
 Virtux gives you a full Linux shell experience - filesystem, permissions, piping, 75+ coreutils-style commands - without a VM, container, Docker daemon, or WSL install. It's pure Python, starts in milliseconds, and behaves close enough to a real shell that it's genuinely useful for teaching, testing, and sandboxed scripting.
 
 ```bash
-git clone https://github.com/RishiBuilds/Virtux.git
-cd Virtux
-pip install -e .
+pip install virtux
 ```
 
 ```
@@ -69,12 +70,8 @@ If you need to **teach** shell basics, **test** CLI tools without touching the r
 
 ## Installation
 
-Virtux isn't on PyPI yet - install it directly from source:
-
 ```bash
-git clone https://github.com/RishiBuilds/Virtux.git
-cd Virtux
-pip install -e .
+pip install virtux
 ```
 
 Requires **Python 3.9+**. No compiled extensions, no system packages, no admin/root access needed.
@@ -299,13 +296,13 @@ virtux
 
 ## How It Compares
 
-|                               | Virtux                           | WSL             | Docker container        | xterm.js + node-pty              |
-| ----------------------------- | -------------------------------- | --------------- | ----------------------- | -------------------------------- |
-| Install footprint             | `git clone` + `pip install -e .` | OS feature, GBs | Docker daemon required  | Node + native pty bindings       |
-| Cold start                    | Milliseconds                     | Seconds–minutes | Seconds                 | Seconds                          |
-| Cross-platform parity         | Identical everywhere             | Windows-only    | Needs Docker Desktop    | Needs a real OS shell underneath |
-| Touches real filesystem       | Never                            | Yes             | Yes (namespaced)        | Yes                              |
-| Embeds in a Python test suite | Native                           | Awkward         | Possible via SDK, heavy | Not applicable                   |
+|                               | Virtux               | WSL             | Docker container        | xterm.js + node-pty              |
+| ----------------------------- | -------------------- | --------------- | ----------------------- | -------------------------------- |
+| Install footprint             | `pip install`        | OS feature, GBs | Docker daemon required  | Node + native pty bindings       |
+| Cold start                    | Milliseconds         | Seconds–minutes | Seconds                 | Seconds                          |
+| Cross-platform parity         | Identical everywhere | Windows-only    | Needs Docker Desktop    | Needs a real OS shell underneath |
+| Touches real filesystem       | Never                | Yes             | Yes (namespaced)        | Yes                              |
+| Embeds in a Python test suite | Native               | Awkward         | Possible via SDK, heavy | Not applicable                   |
 
 Virtux isn't a replacement for a real Linux box when you need actual binaries, real networking, or kernel-level behavior - it's a lightweight, safe stand-in for teaching, prototyping, and testing shell-driven workflows.
 
