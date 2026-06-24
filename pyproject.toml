@@ -50,10 +50,10 @@ dev = [
 virtux = "virtux.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/RishiBuilds/virtux"
-Documentation = "https://github.com/RishiBuilds/virtux#readme"
-Repository = "https://github.com/RishiBuilds/virtux"
-Issues = "https://github.com/RishiBuilds/virtux/issues"
+Homepage = "https://github.com/RishiBuilds/Virtux"
+Documentation = "https://github.com/RishiBuilds/Virtux#readme"
+Repository = "https://github.com/RishiBuilds/Virtux"
+Issues = "https://github.com/RishiBuilds/Virtux/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
