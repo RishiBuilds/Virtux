@@ -5,7 +5,6 @@
 [![PyPI version](https://img.shields.io/pypi/v/virtux.svg)](https://pypi.org/project/virtux/)
 [![Python versions](https://img.shields.io/pypi/pyversions/virtux.svg)](https://pypi.org/project/virtux/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Downloads](https://img.shields.io/pypi/dm/virtux.svg)](https://pypi.org/project/virtux/)
 
 Virtux gives you a full Linux shell experience - filesystem, permissions, piping, 75+ coreutils-style commands - without a VM, container, Docker daemon, or WSL install. It's pure Python, starts in milliseconds, and behaves close enough to a real shell that it's genuinely useful for teaching, testing, and sandboxed scripting.
 
