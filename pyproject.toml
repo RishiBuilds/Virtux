@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virtux"
+version = "0.1.0"
+description = "Cross-platform Linux terminal emulation layer for Python - practice Linux commands anywhere."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [{name = "RishiBuilds"}]
+keywords = [
+    "linux", "terminal", "emulator", "shell", "simulator",
+    "cross-platform", "education", "cli", "bash", "command-line",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education",
+    "Topic :: System :: Shells",
+    "Topic :: Terminals :: Terminal Emulators/X Terminals",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "prompt_toolkit>=3.0",
+    "rich>=13.0",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+virtux = "virtux.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/RishiBuilds/virtux"
+Documentation = "https://github.com/RishiBuilds/virtux#readme"
+Repository = "https://github.com/RishiBuilds/virtux"
+Issues = "https://github.com/RishiBuilds/virtux/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "virtux.commands.*"
+warn_return_any = false
