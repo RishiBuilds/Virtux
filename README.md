@@ -436,7 +436,7 @@ Virtux is organised into a layered architecture:
 
 ---
 
-## 🔌 Plugin System
+## Plugin System
 
 Plugins register commands through the `virtux.plugins` entry-point group. This lets third-party packages extend Virtux with new commands.
 
