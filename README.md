@@ -337,17 +337,17 @@ python -m pytest --cov=virtux
 │          (shell.py - public API)                 │
 ├──────────┬──────────┬──────────┬─────────────────┤
 │  Parser  │ Executor │ Registry │    Plugins      │
-│          │          │          │                  │
+│          │          │          │                 │
 │ Tokenise │ Pipes,   │ Command  │ Entry-point     │
 │ & build  │ redirect,│ lookup & │ discovery       │
-│ pipeline │ dispatch │ metadata │                  │
-│ AST      │          │          │                  │
+│ pipeline │ dispatch │ metadata │                 │
+│ AST      │          │          │                 │
 ├──────────┴──────────┴──────────┴─────────────────┤
 │              Core Infrastructure                 │
 │                                                  │
 │  VirtualFileSystem   Environment   UserManager   │
 │  (in-memory tree)    (vars, cwd,   (uid/gid,     │
-│                       aliases)      sudo/su)      │
+│                      aliases)      sudo/su)      │
 ├──────────────────────────────────────────────────┤
 │                   Commands                       │
 │                                                  │
