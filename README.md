@@ -199,7 +199,7 @@ Virtux ships with **75 unique commands** plus aliases (e.g., `ll` → `ls -la`, 
 
 ---
 
-## 🎮 Usage Modes
+## Usage Modes
 
 | Mode             | Command                          | Use Case                                   |
 | :--------------- | :------------------------------- | :----------------------------------------- |
