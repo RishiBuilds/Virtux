@@ -29,17 +29,17 @@ def cmd_tar(ctx: CommandContext) -> int:
 
     i = 0
     while i < len(ctx.args):
-        if ctx.args[i] == "-f" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-f" and i + 1 < len(ctx.args):
             archive_file = ctx.args[i + 1]
             i += 2
-        elif ctx.args[i].startswith("-"):
-            if "f" in ctx.args[i] and archive_file is None and i + 1 < len(ctx.args):
-                archive_file = ctx.args[i + 1]
-                i += 2
-            else:
-                i += 1
+        elif arg.startswith("-f") and "=" in arg:
+            archive_file = arg.split("=", 1)[1]
+            i += 1
+        elif arg.startswith("-"):
+            i += 1
         else:
-            files.append(ctx.args[i])
+            files.append(arg)
             i += 1
 
     if not archive_file:
@@ -197,11 +197,13 @@ def cmd_unzip(ctx: CommandContext) -> int:
     dest_dir = ctx.cwd
     i = 0
     while i < len(ctx.args):
-        if ctx.args[i] == "-d" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-d" and i + 1 < len(ctx.args):
             dest_dir = ctx.resolve_path(ctx.args[i + 1])
             i += 2
-        elif not ctx.args[i].startswith("-"):
-            archive = ctx.args[i]
+        elif not arg.startswith("-"):
+            if archive is None:
+                archive = arg
             i += 1
         else:
             i += 1

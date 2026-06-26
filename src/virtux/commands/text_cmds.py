@@ -55,18 +55,19 @@ def cmd_head(ctx: CommandContext) -> int:
 
     i = 0
     while i < len(ctx.args):
-        if ctx.args[i] == "-n" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-n" and i + 1 < len(ctx.args):
             try:
                 count = int(ctx.args[i + 1])
             except ValueError:
                 ctx.error(f"head: invalid number of lines: '{ctx.args[i + 1]}'")
                 return 1
             i += 2
-        elif ctx.args[i].startswith("-") and ctx.args[i][1:].isdigit():
-            count = int(ctx.args[i][1:])
+        elif arg.startswith("-") and arg[1:].isdigit():
+            count = int(arg[1:])
             i += 1
-        elif not ctx.args[i].startswith("-"):
-            files.append(ctx.args[i])
+        elif not arg.startswith("-"):
+            files.append(arg)
             i += 1
         else:
             i += 1
@@ -103,15 +104,16 @@ def cmd_tail(ctx: CommandContext) -> int:
 
     i = 0
     while i < len(ctx.args):
-        if ctx.args[i] == "-n" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-n" and i + 1 < len(ctx.args):
             try:
                 count = int(ctx.args[i + 1])
             except ValueError:
                 ctx.error(f"tail: invalid number of lines: '{ctx.args[i + 1]}'")
                 return 1
             i += 2
-        elif not ctx.args[i].startswith("-"):
-            files.append(ctx.args[i])
+        elif not arg.startswith("-"):
+            files.append(arg)
             i += 1
         else:
             i += 1
@@ -274,14 +276,15 @@ def cmd_sort(ctx: CommandContext) -> int:
 
     i = 0
     while i < len(ctx.args):
-        if ctx.args[i] == "-k" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-k" and i + 1 < len(ctx.args):
             try:
                 key_field = int(ctx.args[i + 1]) - 1
             except ValueError:
                 pass
             i += 2
-        elif not ctx.args[i].startswith("-"):
-            files.append(ctx.args[i])
+        elif not arg.startswith("-"):
+            files.append(arg)
             i += 1
         else:
             i += 1
@@ -380,14 +383,15 @@ def cmd_cut(ctx: CommandContext) -> int:
 
     i = 0
     while i < len(ctx.args):
-        if ctx.args[i] == "-d" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-d" and i + 1 < len(ctx.args):
             delimiter = ctx.args[i + 1]
             i += 2
-        elif ctx.args[i] == "-f" and i + 1 < len(ctx.args):
+        elif arg == "-f" and i + 1 < len(ctx.args):
             field_spec = ctx.args[i + 1]
             i += 2
-        elif not ctx.args[i].startswith("-"):
-            files.append(ctx.args[i])
+        elif not arg.startswith("-"):
+            files.append(arg)
             i += 1
         else:
             i += 1

@@ -21,15 +21,16 @@ def cmd_ping(ctx: CommandContext) -> int:
     i = 0
 
     while i < len(ctx.args):
-        if ctx.args[i] == "-c" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-c" and i + 1 < len(ctx.args):
             try:
                 count = int(ctx.args[i + 1])
             except ValueError:
                 ctx.error(f"ping: invalid count: {ctx.args[i + 1]}")
                 return 1
             i += 2
-        elif not ctx.args[i].startswith("-"):
-            host = ctx.args[i]
+        elif not arg.startswith("-"):
+            host = arg
             i += 1
         else:
             i += 1
@@ -134,11 +135,12 @@ def cmd_curl(ctx: CommandContext) -> int:
     i = 0
 
     while i < len(ctx.args):
-        if ctx.args[i] == "-o" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-o" and i + 1 < len(ctx.args):
             output_file = ctx.args[i + 1]
             i += 2
-        elif not ctx.args[i].startswith("-"):
-            url = ctx.args[i]
+        elif not arg.startswith("-"):
+            url = arg
             i += 1
         else:
             i += 1
@@ -190,11 +192,12 @@ def cmd_wget(ctx: CommandContext) -> int:
     i = 0
 
     while i < len(ctx.args):
-        if ctx.args[i] == "-O" and i + 1 < len(ctx.args):
+        arg = ctx.args[i]
+        if arg == "-O" and i + 1 < len(ctx.args):
             output_file = ctx.args[i + 1]
             i += 2
-        elif not ctx.args[i].startswith("-"):
-            url = ctx.args[i]
+        elif not arg.startswith("-"):
+            url = arg
             i += 1
         else:
             i += 1
